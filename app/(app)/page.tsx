@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { FileText, CheckSquare, Plus } from 'lucide-react'
 
@@ -14,7 +14,7 @@ export default async function HomePage() {
     .eq('owner_id', user.id)
     .single()
 
-  if (!workspace) return null
+  if (!workspace) redirect('/login')
 
   const [{ data: recentPages }, { data: recentTasks }] = await Promise.all([
     supabase
