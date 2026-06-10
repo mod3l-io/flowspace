@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/sidebar/Sidebar'
 import type { Workspace } from '@/types'
@@ -7,7 +6,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login')
+  if (!user) return null
 
   // 1. Buscar workspace propio
   let workspace: Workspace | null = null
@@ -50,7 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
-  if (!workspace) redirect('/login')
+  if (!workspace) return null
 
   return (
     <div className="flex h-full overflow-hidden">
