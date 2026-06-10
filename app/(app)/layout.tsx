@@ -53,12 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   if (!workspace) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-500 flex-col gap-2">
-        <p>No se pudo cargar el espacio. Usuario: {user.email}</p>
-        <a href="/login" className="underline">Cerrar sesión</a>
-      </div>
-    )
+    redirect('/api/setup-workspace')
   }
 
   return (
