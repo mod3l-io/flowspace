@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --sidebar-bg: #f7f7f5;
+  --sidebar-border: #e9e9e7;
+  --text-primary: #37352f;
+  --text-secondary: #6b7280;
+  --accent: #2383e2;
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar-bg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-text-primary: var(--text-primary);
+  --color-accent: var(--accent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  color: var(--text-primary);
+  background: #ffffff;
+}
+
+/* BlockNote overrides */
+.bn-editor {
+  padding: 0 !important;
+}
+
+.bn-container {
+  height: 100%;
+}
