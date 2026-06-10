@@ -826,72 +826,77 @@ Modelo: Intercambio estratégico (no cliente pago)
 // ── Migration handler ────────────────────────────────────────────────────────
 
 export async function POST() {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) return NextResponse.json({ error: 'No session token' }, { status: 401 })
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return NextResponse.json({ error: 'No session token' }, { status: 401 })
 
-  const token = session.access_token
-  const userId = user.id
-  const headers = { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY }
+    const token = session.access_token
+    const userId = user.id
+    const headers = { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY }
 
-  // Get workspace
-  const wsRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/workspaces?owner_id=eq.${userId}&limit=1&select=id`,
-    { headers },
-  )
-  const workspaces: { id: string }[] = await wsRes.json()
-  if (!workspaces.length) return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
-  const workspaceId = workspaces[0].id
+    // Get workspace
+    const wsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/workspaces?owner_id=eq.${userId}&limit=1&select=id`,
+      { headers },
+    )
+    const workspaces: { id: string }[] = await wsRes.json()
+    if (!workspaces.length) return NextResponse.json({ error: 'No workspace found' }, { status: 404 })
+    const workspaceId = workspaces[0].id
 
-  // Check for existing migration (avoid duplicates)
-  const existingRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/pages?workspace_id=eq.${workspaceId}&title=eq.mod3l.io%20%E2%80%94%20Workspace&select=id`,
-    { headers },
-  )
-  const existing: { id: string }[] = await existingRes.json()
-  if (existing.length) {
-    return NextResponse.json({ error: 'Migration already done — "mod3l.io — Workspace" already exists.' }, { status: 409 })
-  }
-
-  // Insert pages in order, tracking IDs for parent linking
-  const idMap: Record<string, string> = {}
-  const results: { title: string; ok: boolean; error?: string }[] = []
-
-  for (const page of PAGES) {
-    const parentId = page.parentKey ? (idMap[page.parentKey] ?? null) : null
-
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/pages`, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        workspace_id: workspaceId,
-        parent_id: parentId,
-        title: page.title,
-        icon: page.icon,
-        content: markdownToBlocks(page.md),
-        created_by: userId,
-        type: 'document',
-      }),
-    })
-
-    const data = await res.json()
-    if (res.ok && Array.isArray(data) && data[0]) {
-      idMap[page.key] = data[0].id
-      results.push({ title: page.title, ok: true })
-    } else {
-      results.push({ title: page.title, ok: false, error: data?.message ?? JSON.stringify(data) })
+    // Check for existing migration (avoid duplicates)
+    const existingRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/pages?workspace_id=eq.${workspaceId}&title=eq.mod3l.io%20%E2%80%94%20Workspace&select=id`,
+      { headers },
+    )
+    const existing: { id: string }[] = await existingRes.json()
+    if (existing.length) {
+      return NextResponse.json({ error: 'Migration already done — "mod3l.io — Workspace" already exists.' }, { status: 409 })
     }
-  }
 
-  const failed = results.filter(r => !r.ok)
-  return NextResponse.json({
-    total: results.length,
-    ok: results.filter(r => r.ok).length,
-    failed: failed.length,
-    results,
-  })
+    // Insert pages in order, tracking IDs for parent linking
+    const idMap: Record<string, string> = {}
+    const results: { title: string; ok: boolean; error?: string }[] = []
+
+    for (const page of PAGES) {
+      const parentId = page.parentKey ? (idMap[page.parentKey] ?? null) : null
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/pages`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          parent_id: parentId,
+          title: page.title,
+          icon: page.icon,
+          content: markdownToBlocks(page.md),
+          created_by: userId,
+          type: 'document',
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && Array.isArray(data) && data[0]) {
+        idMap[page.key] = data[0].id
+        results.push({ title: page.title, ok: true })
+      } else {
+        results.push({ title: page.title, ok: false, error: data?.message ?? JSON.stringify(data) })
+      }
+    }
+
+    const failed = results.filter(r => !r.ok)
+    return NextResponse.json({
+      total: results.length,
+      ok: results.filter(r => r.ok).length,
+      failed: failed.length,
+      results,
+    })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? `${err.message}\n${err.stack}` : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
