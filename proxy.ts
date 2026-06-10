@@ -23,35 +23,8 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
-  const isPublicPath =
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/join') ||
-    pathname.startsWith('/api/auth')
-
-  if (!user && !isPublicPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    const redirectResponse = NextResponse.redirect(url)
-    // Copiar cookies actualizadas al redirect para no perder el estado
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value)
-    })
-    return redirectResponse
-  }
-
-  if (user && pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    const redirectResponse = NextResponse.redirect(url)
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie.name, cookie.value)
-    })
-    return redirectResponse
-  }
+  // Solo refrescar el token — no redirigir desde acá
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }

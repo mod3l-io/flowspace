@@ -50,7 +50,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
-  if (!workspace) redirect('/login')
+  if (!workspace) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-gray-500">
+        No se pudo cargar el espacio de trabajo.{' '}
+        <a href="/login" className="underline ml-1">Cerrar sesión</a>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full overflow-hidden">
