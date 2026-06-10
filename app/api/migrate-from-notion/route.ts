@@ -1,5 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -827,22 +826,16 @@ Modelo: Intercambio estratégico (no cliente pago)
 // ── Migration handler ────────────────────────────────────────────────────────
 
 export async function POST() {
-  const cookieStore = await cookies()
+  const supabase = await createClient()
 
-  const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    cookies: {
-      getAll() { return cookieStore.getAll() },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-      },
-    },
-  })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (!session?.access_token) return NextResponse.json({ error: 'No session token' }, { status: 401 })
 
   const token = session.access_token
-  const userId = session.user.id
+  const userId = user.id
   const headers = { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY }
 
   // Get workspace
