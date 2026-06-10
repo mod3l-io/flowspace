@@ -24,19 +24,33 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
-  const isJoinRoute = request.nextUrl.pathname.startsWith('/join')
 
-  if (!user && !isAuthRoute && !isJoinRoute) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/login'
-    return NextResponse.redirect(redirectUrl)
+  const { pathname } = request.nextUrl
+  const isPublicPath =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/join') ||
+    pathname.startsWith('/api/auth')
+
+  if (!user && !isPublicPath) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    const redirectResponse = NextResponse.redirect(url)
+    // Copiar cookies actualizadas al redirect para no perder el estado
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value)
+    })
+    return redirectResponse
   }
 
-  if (user && isAuthRoute) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/'
-    return NextResponse.redirect(redirectUrl)
+  if (user && pathname === '/login') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value)
+    })
+    return redirectResponse
   }
 
   return supabaseResponse
@@ -44,6 +58,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
