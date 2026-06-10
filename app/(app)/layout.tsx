@@ -48,12 +48,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         })
       } else {
         console.error('Workspace insert failed:', insertError?.message, insertError?.code, 'user:', user.id)
+        const errorMsg = encodeURIComponent(insertError?.message || 'Error al crear workspace')
+        redirect(`/workspace-error?error=${errorMsg}`)
       }
     }
   }
 
   if (!workspace) {
-    redirect('/api/setup-workspace')
+    redirect('/workspace-error')
   }
 
   return (

@@ -62,7 +62,8 @@ export async function GET() {
     const workspace = await insertRes.json()
 
     if (!insertRes.ok) {
-      return NextResponse.json({ error: workspace?.message || 'Error al crear workspace', token_sub: user.id }, { status: 500 })
+      const errorMsg = encodeURIComponent(workspace?.message || 'Error al crear workspace')
+      return NextResponse.redirect(new URL(`/workspace-error?error=${errorMsg}`, SITE_URL))
     }
 
     const workspaceId = workspace[0]?.id

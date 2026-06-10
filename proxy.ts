@@ -24,7 +24,11 @@ export async function proxy(request: NextRequest) {
   )
 
   // Solo refrescar el token — no redirigir desde acá
-  await supabase.auth.getUser()
+  try {
+    await supabase.auth.getUser()
+  } catch {
+    // Supabase unavailable; let the request through so the app can handle it
+  }
 
   return supabaseResponse
 }
