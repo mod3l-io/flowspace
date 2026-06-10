@@ -33,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       workspace = (membership.workspaces as unknown) as Workspace
     } else {
       // 3. Crear workspace nuevo
-      const { data: created } = await supabase
+      const { data: created, error: insertError } = await supabase
         .from('workspaces')
         .insert({ name: 'Mi espacio', owner_id: user.id })
         .select()
@@ -46,15 +46,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           user_id: user.id,
           role: 'owner',
         })
+      } else {
+        console.error('Workspace insert failed:', insertError?.message, insertError?.code, 'user:', user.id)
       }
     }
   }
 
   if (!workspace) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-500">
-        No se pudo cargar el espacio de trabajo.{' '}
-        <a href="/login" className="underline ml-1">Cerrar sesión</a>
+      <div className="flex h-full items-center justify-center text-sm text-gray-500 flex-col gap-2">
+        <p>No se pudo cargar el espacio. Usuario: {user.email}</p>
+        <a href="/login" className="underline">Cerrar sesión</a>
       </div>
     )
   }
