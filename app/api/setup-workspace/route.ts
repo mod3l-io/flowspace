@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+const SITE_URL = 'https://flowspace-weld-one.vercel.app'
+
 export async function GET() {
   const cookieStore = await cookies()
 
@@ -12,7 +14,6 @@ export async function GET() {
       cookies: {
         getAll() { return cookieStore.getAll() },
         setAll(cookiesToSet) {
-          // Route Handlers SÍ pueden setear cookies
           cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, options)
           )
@@ -21,39 +22,64 @@ export async function GET() {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SITE_URL || 'https://flowspace-weld-one.vercel.app'))
+  // Forzar refresh para obtener un token fresco
+  await supabase.auth.refreshSession()
+  const { data: { session } } = await supabase.auth.getSession()
 
-  // Buscar workspace existente
-  const { data: owned } = await supabase
-    .from('workspaces')
-    .select('id')
-    .eq('owner_id', user.id)
-    .limit(1)
-    .maybeSingle()
+  if (!session) {
+    return NextResponse.redirect(new URL('/login', SITE_URL))
+  }
 
-  if (!owned) {
-    // Crear workspace nuevo
-    const { data: created, error } = await supabase
-      .from('workspaces')
-      .insert({ name: 'Mi espacio', owner_id: user.id })
-      .select('id')
-      .single()
+  const { access_token, user } = session
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-    if (created) {
-      await supabase.from('workspace_members').insert({
-        workspace_id: created.id,
-        user_id: user.id,
-        role: 'owner',
+  // Verificar si ya tiene workspace
+  const selectRes = await fetch(
+    `${supabaseUrl}/rest/v1/workspaces?owner_id=eq.${user.id}&limit=1&select=id`,
+    {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'apikey': anonKey,
+      },
+    }
+  )
+  const existing = await selectRes.json()
+
+  if (!existing || existing.length === 0) {
+    // Crear workspace con el token fresco explícito
+    const insertRes = await fetch(`${supabaseUrl}/rest/v1/workspaces`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${access_token}`,
+        'apikey': anonKey,
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({ name: 'Mi espacio', owner_id: user.id }),
+    })
+
+    const workspace = await insertRes.json()
+
+    if (!insertRes.ok) {
+      return NextResponse.json({ error: workspace?.message || 'Error al crear workspace', token_sub: user.id }, { status: 500 })
+    }
+
+    const workspaceId = workspace[0]?.id
+    if (workspaceId) {
+      await fetch(`${supabaseUrl}/rest/v1/workspace_members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${access_token}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ workspace_id: workspaceId, user_id: user.id, role: 'owner' }),
       })
-    } else {
-      console.error('setup-workspace insert error:', error?.message, error?.code)
-      return NextResponse.json({ error: error?.message }, { status: 500 })
     }
   }
 
-  const response = NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_SITE_URL || 'https://flowspace-weld-one.vercel.app'))
-  // Copiar cookies actualizadas (token refrescado) a la respuesta
+  const response = NextResponse.redirect(new URL('/', SITE_URL))
   cookieStore.getAll().forEach((cookie) => {
     response.cookies.set(cookie.name, cookie.value)
   })
