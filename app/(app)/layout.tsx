@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/sidebar/Sidebar'
 import type { Workspace } from '@/types'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
 
 async function restGet<T>(path: string, token: string): Promise<T[]> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
