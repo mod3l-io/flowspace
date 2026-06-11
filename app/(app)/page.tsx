@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { FileText, CheckSquare, Plus } from 'lucide-react'
+import { CheckSquare, Circle, Clock, CheckCircle2 } from 'lucide-react'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -10,115 +12,124 @@ export default async function HomePage() {
 
   const { data: workspace } = await supabase
     .from('workspaces')
-    .select('id')
+    .select('id, name')
     .eq('owner_id', user.id)
     .single()
 
   if (!workspace) redirect('/login')
 
-  const [{ data: recentPages }, { data: recentTasks }] = await Promise.all([
+  const [{ data: recentPages }, { data: tasks }] = await Promise.all([
     supabase
       .from('pages')
       .select('id, title, icon, updated_at')
       .eq('workspace_id', workspace.id)
       .order('updated_at', { ascending: false })
-      .limit(5),
+      .limit(8),
     supabase
       .from('tasks')
-      .select('id, title, status')
+      .select('id, title, status, due_date')
       .eq('workspace_id', workspace.id)
-      .neq('status', 'done')
       .order('created_at', { ascending: false })
-      .limit(5),
+      .limit(20),
   ])
 
-  const name = user.email?.split('@')[0] ?? 'ahí'
+  const pending = tasks?.filter(t => t.status === 'pending') ?? []
+  const inProgress = tasks?.filter(t => t.status === 'in_progress') ?? []
+  const done = tasks?.filter(t => t.status === 'done') ?? []
+
+  const todayLabel = format(new Date(), "EEEE d 'de' MMMM", { locale: es })
+  const name = user.email?.split('@')[0] ?? ''
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-14">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">
-        Hola, {name} 👋
-      </h1>
-      <p className="text-gray-500 mb-10">Bienvenido a Flowspace</p>
+    <div className="max-w-2xl mx-auto px-8 py-12">
+      {/* Greeting */}
+      <p className="text-xs text-gray-400 uppercase tracking-widest mb-1 capitalize">{todayLabel}</p>
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Hola, {name}</h1>
 
-      <div className="grid grid-cols-2 gap-4 mb-10">
+      {/* Task summary */}
+      <div className="grid grid-cols-3 gap-3 mb-10">
         <Link
           href="/tasks"
-          className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all bg-white group"
+          className="flex flex-col gap-1 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all"
         >
-          <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-            <CheckSquare size={18} className="text-blue-600" />
+          <div className="flex items-center gap-2 text-gray-500 mb-1">
+            <Circle size={14} />
+            <span className="text-xs font-medium">Pendiente</span>
           </div>
-          <div>
-            <p className="font-medium text-gray-900 text-sm">Tareas</p>
-            <p className="text-xs text-gray-400">
-              {recentTasks?.length ?? 0} pendientes
-            </p>
-          </div>
+          <p className="text-2xl font-bold text-gray-900">{pending.length}</p>
         </Link>
 
-        <button
-          onClick={undefined}
-          className="flex items-center gap-3 p-4 border border-dashed border-gray-300 rounded-xl hover:border-gray-400 transition-all bg-white group"
+        <Link
+          href="/tasks"
+          className="flex flex-col gap-1 p-4 bg-white border border-blue-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all"
         >
-          <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-            <Plus size={18} className="text-gray-500" />
+          <div className="flex items-center gap-2 text-blue-500 mb-1">
+            <Clock size={14} />
+            <span className="text-xs font-medium">En progreso</span>
           </div>
-          <div className="text-left">
-            <p className="font-medium text-gray-900 text-sm">Nueva página</p>
-            <p className="text-xs text-gray-400">Usá el sidebar</p>
+          <p className="text-2xl font-bold text-gray-900">{inProgress.length}</p>
+        </Link>
+
+        <Link
+          href="/tasks"
+          className="flex flex-col gap-1 p-4 bg-white border border-green-100 rounded-xl hover:border-green-200 hover:shadow-sm transition-all"
+        >
+          <div className="flex items-center gap-2 text-green-500 mb-1">
+            <CheckCircle2 size={14} />
+            <span className="text-xs font-medium">Listas</span>
           </div>
-        </button>
+          <p className="text-2xl font-bold text-gray-900">{done.length}</p>
+        </Link>
       </div>
 
-      {/* Recent pages */}
-      {recentPages && recentPages.length > 0 && (
+      {/* In-progress tasks */}
+      {inProgress.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Páginas recientes
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Clock size={12} className="text-blue-500" />
+            En progreso
           </h2>
-          <div className="space-y-1">
-            {recentPages.map((page) => (
+          <div className="space-y-1.5">
+            {inProgress.slice(0, 4).map(task => (
               <Link
-                key={page.id}
-                href={`/doc/${page.id}`}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                key={task.id}
+                href="/tasks"
+                className="flex items-center gap-3 px-3 py-2.5 bg-blue-50/50 border border-blue-100 rounded-lg hover:bg-blue-50 transition-colors"
               >
-                <span className="text-lg">{page.icon}</span>
-                <span className="text-sm text-gray-700">{page.title || 'Sin título'}</span>
+                <CheckSquare size={14} className="text-blue-400 shrink-0" />
+                <span className="text-sm text-gray-800 truncate">{task.title}</span>
+                {task.due_date && (
+                  <span className="ml-auto text-xs text-gray-400 shrink-0">
+                    {format(new Date(task.due_date + 'T00:00:00'), "d MMM", { locale: es })}
+                  </span>
+                )}
               </Link>
             ))}
           </div>
         </div>
       )}
 
-      {/* Recent tasks */}
-      {recentTasks && recentTasks.length > 0 && (
+      {/* Recent pages */}
+      {recentPages && recentPages.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Tareas pendientes
+            Páginas recientes
           </h2>
-          <div className="space-y-1">
-            {recentTasks.map((task) => (
+          <div className="space-y-0.5">
+            {recentPages.map(page => (
               <Link
-                key={task.id}
-                href="/tasks"
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                key={page.id}
+                href={`/doc/${page.id}`}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors group"
               >
-                <FileText size={14} className="text-gray-400 shrink-0" />
-                <span className="text-sm text-gray-700">{task.title}</span>
-                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {task.status === 'in_progress' ? 'En progreso' : 'Pendiente'}
+                <span className="text-base shrink-0">{page.icon}</span>
+                <span className="text-sm text-gray-700 flex-1 truncate">{page.title || 'Sin título'}</span>
+                <span className="text-xs text-gray-300 group-hover:text-gray-400 shrink-0">
+                  {format(new Date(page.updated_at), "d MMM", { locale: es })}
                 </span>
               </Link>
             ))}
           </div>
-        </div>
-      )}
-
-      {(!recentPages?.length && !recentTasks?.length) && (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-sm">Tu espacio está vacío. ¡Creá tu primera página!</p>
         </div>
       )}
     </div>
