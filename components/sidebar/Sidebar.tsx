@@ -198,10 +198,12 @@ export default function Sidebar({ workspace, userId, userEmail }: SidebarProps) 
         {/* Workspace header — click logo to go home */}
         <div className="px-3 py-3 flex items-center justify-between border-b border-[#e9e9e7]">
           <Link href="/" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
-            <div className="w-6 h-6 bg-gray-900 text-white text-xs rounded-md flex items-center justify-center font-bold shrink-0">
-              {workspace.name.charAt(0).toUpperCase()}
-            </div>
-            <span className="font-semibold text-sm text-gray-900 truncate">{workspace.name}</span>
+            <svg width="24" height="24" viewBox="0 0 32 32" className="rounded-md shrink-0">
+              <rect width="32" height="32" fill="#0a0a0f"/>
+              <rect width="3" height="32" fill="#00c3ff" opacity="0.5"/>
+              <text x="6" y="24" fontFamily="'Courier New',Courier,monospace" fontSize="19" fontWeight="700" fill="#e8f4ff">m<tspan fill="#00c3ff">3</tspan></text>
+            </svg>
+            <span className="font-semibold text-sm text-gray-900 truncate">Mod3l</span>
           </Link>
         </div>
 

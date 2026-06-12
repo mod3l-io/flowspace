@@ -10,7 +10,7 @@ const geist = Geist({
 })
 
 export const metadata: Metadata = {
-  title: 'Flowspace',
+  title: 'Flowspace Mod3l',
   description: 'Tu espacio de trabajo colaborativo',
 }
 
