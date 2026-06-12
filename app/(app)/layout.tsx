@@ -44,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // getUser() calls Supabase Auth directly — always reliable for identity verification
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+  if (!user.email_confirmed_at) redirect('/confirm-email')
 
   // Explicitly get the session to extract a fresh access token for REST calls.
   // We use direct REST fetch (not the supabase-js PostgREST client) to guarantee

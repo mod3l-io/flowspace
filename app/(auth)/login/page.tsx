@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState('')
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -23,7 +24,14 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
+        if (error) {
+          if (error.message.toLowerCase().includes('email not confirmed')) {
+            setNeedsConfirmation(true)
+            setError('Tu email no está confirmado todavía.')
+            return
+          }
+          throw error
+        }
         router.push('/')
         router.refresh()
       } else if (mode === 'signup') {
@@ -126,6 +134,29 @@ export default function LoginPage() {
 
           {error && (
             <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>
+          )}
+          {needsConfirmation && (
+            <button
+              type="button"
+              onClick={async () => {
+                setLoading(true)
+                setError('')
+                try {
+                  const { error } = await supabase.auth.resend({ type: 'signup', email })
+                  if (error) throw error
+                  setSuccess('¡Email de confirmación reenviado! Revisá tu casilla y el spam.')
+                  setNeedsConfirmation(false)
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Error al reenviar')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              disabled={loading}
+              className="w-full py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              Reenviar email de confirmación
+            </button>
           )}
           {success && (
             <div className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{success}</div>
