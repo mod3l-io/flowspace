@@ -4,13 +4,14 @@ import Sidebar from '@/components/sidebar/Sidebar'
 import type { Workspace } from '@/types'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
+// Service role key bypasses RLS — safe here because identity is verified via getUser() above
+const SERVICE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!.trim()
 
-async function restGet<T>(path: string, token: string): Promise<T[]> {
+async function restGet<T>(path: string): Promise<T[]> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SERVICE_KEY}`,
+      'apikey': SERVICE_KEY,
     },
     cache: 'no-store',
   })
@@ -20,15 +21,14 @@ async function restGet<T>(path: string, token: string): Promise<T[]> {
 
 async function restPost<T>(
   path: string,
-  token: string,
   body: object,
 ): Promise<{ ok: boolean; data?: T; message?: string }> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SERVICE_KEY}`,
+      'apikey': SERVICE_KEY,
       'Prefer': 'return=representation',
     },
     body: JSON.stringify(body),
@@ -50,20 +50,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // We use direct REST fetch (not the supabase-js PostgREST client) to guarantee
   // the correct Bearer token is sent — the client's _getAccessToken() can fall back
   // to the anon key in certain SSR edge cases when the session is near expiry.
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session?.access_token) {
-    console.error('[layout] session null after getUser() succeeded, user:', user.id)
-    redirect('/workspace-error?error=session_expirada')
-  }
-
-  const token = session.access_token
   let workspace: Workspace | null = null
 
   // 1. Buscar workspace propio
   const ownedRows = await restGet<Workspace>(
     `workspaces?owner_id=eq.${user.id}&limit=1&select=*`,
-    token,
   )
 
   if (ownedRows.length > 0) {
@@ -73,16 +64,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     type MemberRow = { workspace_id: string; workspaces: Workspace }
     const memberRows = await restGet<MemberRow>(
       `workspace_members?user_id=eq.${user.id}&limit=1&select=workspace_id,workspaces(*)`,
-      token,
     )
 
     if (memberRows.length > 0 && memberRows[0].workspaces) {
       workspace = memberRows[0].workspaces
     } else {
-      // 3. Crear workspace nuevo con token explícito via REST
+      // 3. Crear workspace nuevo
       const insertResult = await restPost<Workspace>(
         'workspaces',
-        token,
         { name: 'Mi espacio', owner_id: user.id },
       )
 
@@ -90,7 +79,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         workspace = insertResult.data
         await restPost(
           'workspace_members',
-          token,
           { workspace_id: workspace.id, user_id: user.id, role: 'owner' },
         )
       } else {
