@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         workspace = newWorkspace
         await admin
           .from('workspace_members')
-          .insert({ workspace_id: workspace.id, user_id: user.id, role: 'owner' })
+          .insert({ workspace_id: newWorkspace.id, user_id: user.id, role: 'owner' })
       } else {
         console.error('[layout] workspace insert failed:', error?.message, 'user:', user.id)
         const errorMsg = encodeURIComponent(error?.message || 'Error al crear workspace')
