@@ -1,20 +1,16 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getWorkspaceForUser } from '@/lib/workspace'
 import TaskBoard from '@/components/tasks/TaskBoard'
-import type { Workspace } from '@/types'
 
 export default async function TasksPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: workspace } = await supabase
-    .from('workspaces')
-    .select('*')
-    .eq('owner_id', user.id)
-    .single()
+  const workspace = await getWorkspaceForUser(user.id)
 
   if (!workspace) redirect('/')
 
-  return <TaskBoard workspace={workspace as Workspace} userId={user.id} />
+  return <TaskBoard workspace={workspace} userId={user.id} />
 }

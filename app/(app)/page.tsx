@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getWorkspaceForUser } from '@/lib/workspace'
 import Link from 'next/link'
 import { CheckSquare, Circle, Clock, CheckCircle2 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -10,13 +11,9 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: workspace } = await supabase
-    .from('workspaces')
-    .select('id, name')
-    .eq('owner_id', user.id)
-    .single()
+  const workspace = await getWorkspaceForUser(user.id)
 
-  if (!workspace) redirect('/login')
+  if (!workspace) redirect('/workspace-error')
 
   const [{ data: recentPages }, { data: tasks }] = await Promise.all([
     supabase
