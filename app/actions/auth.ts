@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 
 export type LoginState = {
   error: string
@@ -31,5 +32,9 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     return { error: 'Tu email no está confirmado todavía.', needsConfirmation: true, email }
   }
 
+  // Invalidate the Next.js client-side router cache so that RSC responses
+  // cached while unauthenticated (containing redirect-to-login instructions)
+  // are not replayed after a successful login.
+  revalidatePath('/', 'layout')
   redirect('/')
 }
